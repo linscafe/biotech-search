@@ -565,13 +565,17 @@
   function renderRows(rows, keywords) {
     resultsBody.textContent = "";
     for (const r of rows) {
+      // Highlight what actually matched — synonyms, stems, hyphen variants and
+      // corrected misspellings — as reported by search_companies(). Fall back to
+      // the typed terms if an older database does not send the list.
+      const hl = Array.isArray(r.highlights) ? r.highlights : keywords;
       const tr = document.createElement("tr");
 
       const nameTd = document.createElement("td");
       nameTd.className = "name-cell";
       nameTd.title = r.name || "";
       const nameSpan = document.createElement("span");
-      renderHighlighted(nameSpan, r.name || "", keywords);
+      renderHighlighted(nameSpan, r.name || "", hl);
       nameTd.appendChild(nameSpan);
       if (r.city) {
         const loc = document.createElement("div");
@@ -592,7 +596,7 @@
       const briefTd = document.createElement("td");
       briefTd.className = "brief-cell";
       const briefSpan = document.createElement("span");
-      renderHighlighted(briefSpan, r.brief || "", keywords);
+      renderHighlighted(briefSpan, r.brief || "", hl);
       briefTd.appendChild(briefSpan);
 
       if (Array.isArray(r.technology) && r.technology.length) {
@@ -600,15 +604,16 @@
         tagDiv.className = "tag";
         tagDiv.appendChild(document.createTextNode("Technology: "));
         const tagText = document.createElement("span");
-        renderHighlighted(tagText, r.technology.join(", "), keywords);
+        renderHighlighted(tagText, r.technology.join(", "), hl);
         tagDiv.appendChild(tagText);
         briefTd.appendChild(tagDiv);
       }
 
       // Free-text, model-extracted, and often long — same untrusted handling
       // as every other database field: text nodes only, never innerHTML.
-      appendPeopleLine(briefTd, "Founders", r.founders, keywords);
-      appendPeopleLine(briefTd, "Investors", r.investors, keywords);
+      // Not highlighted: founders and investors are not part of the search.
+      appendPeopleLine(briefTd, "Founders", r.founders, []);
+      appendPeopleLine(briefTd, "Investors", r.investors, []);
 
       tr.appendChild(nameTd);
       tr.appendChild(countryTd);
