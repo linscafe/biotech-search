@@ -55,7 +55,6 @@
   const MAX_PAGE_OFFSET = 100000;
   const MAX_QUERY_LENGTH = 500;
   const MAX_KEYWORDS = 10;
-  const DEBOUNCE_MS = 250;
   const SORT_OPTIONS = new Set(["relevance", "name_asc", "name_desc", "country_asc", "country_desc"]);
 
   // Derived only from the page's own location — never from user input or a
@@ -126,7 +125,11 @@
   let currentRows = []; // rows currently rendered (for reference only)
   let lastQueryArgs = null; // filter/sort/q snapshot backing the currently displayed results
   let knownCountries = [];
-  let debounceTimer = null;
+  // Search runs only when the user presses Search (or Enter in the box).
+  // Paging, sorting and filters re-run the LAST SUBMITTED query, never
+  // whatever is currently typed in the box.
+  let submittedQuery = "";
+  let hasSearched = false;
   let exportInFlight = false;
   let activeObjectUrls = [];
   let appInitialized = false;
@@ -150,6 +153,8 @@
     exportMdBtn.disabled = true;
     exportCsvBtn.disabled = true;
     currentKeywords = [];
+    submittedQuery = "";
+    hasSearched = false;
     currentOffset = 0;
     currentTotal = 0;
     currentRows = [];
@@ -312,20 +317,52 @@
   // Validation
   // ---------------------------------------------------------------------
 
-  function parseKeywords(raw) {
-    return raw
-      .split(",")
-      .map((k) => k.trim())
-      .filter((k) => k.length > 0);
+  // Mirrors public.normalize_term() in supabase/migrations/0002_search.sql.
+  function normalizeTerm(t) {
+    return t.toLowerCase().replace(/\s+/g, " ").replace(/^[ .;:-]+|[ .;:-]+$/g, "");
+  }
+
+  // Mirrors public.parse_search_query() in supabase/migrations/0004_search_syntax.sql.
+  // The database is authoritative; this copy only drives validation messages
+  // and highlighting, so the two must stay in step.
+  //   spaces / commas / AND  -> all terms must match
+  //   "quoted phrase"        -> one term, spaces kept
+  //   OR                     -> alternatives; binds tighter than AND
+  //   parentheses            -> ignored
+  function parseQuery(raw) {
+    const re = /"([^"]*)(?:"|$)|(,)|([^\s,"()]+)/g;
+    const groups = [];
+    let pendingOr = false;
+    let m;
+    while ((m = re.exec(raw)) !== null) {
+      if (m[0] === "") { re.lastIndex++; continue; }
+      let tok;
+      if (m[1] !== undefined) {
+        tok = normalizeTerm(m[1]);
+      } else if (m[2] !== undefined) {
+        pendingOr = false;
+        continue;
+      } else {
+        const w = m[3].toUpperCase();
+        if (w === "OR") { pendingOr = groups.length > 0; continue; }
+        if (w === "AND") { pendingOr = false; continue; }
+        tok = normalizeTerm(m[3]);
+      }
+      if (!tok) continue;
+      if (pendingOr) groups[groups.length - 1].push(tok);
+      else groups.push([tok]);
+      pendingOr = false;
+    }
+    return { groups, terms: groups.flat() };
   }
 
   function validateQuery(raw) {
     if (raw.length > MAX_QUERY_LENGTH) {
       return `Query is too long (max ${MAX_QUERY_LENGTH} characters).`;
     }
-    const keywords = parseKeywords(raw);
-    if (keywords.length > MAX_KEYWORDS) {
-      return `Too many keywords (max ${MAX_KEYWORDS} comma-separated terms).`;
+    const { terms } = parseQuery(raw);
+    if (terms.length > MAX_KEYWORDS) {
+      return `Too many terms (max ${MAX_KEYWORDS}, counting every term on both sides of OR).`;
     }
     return null;
   }
@@ -370,8 +407,14 @@
       while (idx <= lowerText.length) {
         const found = lowerText.indexOf(lkw, idx);
         if (found === -1) break;
-        spans.push([found, found + lkw.length]);
-        idx = found + lkw.length;
+        const end = found + lkw.length;
+        // Word boundaries, like the search: "ngs" must not light up "lungs".
+        const before = found === 0 ? "" : lowerText[found - 1];
+        const after = end >= lowerText.length ? "" : lowerText[end];
+        if (!/[a-z0-9]/.test(before) && !/[a-z0-9]/.test(after)) {
+          spans.push([found, end]);
+        }
+        idx = found + 1;
       }
     }
     if (!spans.length) return [];
@@ -579,7 +622,7 @@
 
   function currentSearchArgs(offset) {
     return {
-      q: input.value,
+      q: submittedQuery,
       filter_country: countryFilter.value || null,
       only_with_website: websiteFilter.checked ? true : null,
       sort_mode: SORT_OPTIONS.has(currentSort) ? currentSort : "relevance",
@@ -589,7 +632,7 @@
   }
 
   async function runSearch(offset = 0) {
-    const raw = input.value;
+    const raw = submittedQuery;
     const validationError = validateQuery(raw);
     setQueryError(validationError);
     if (validationError) {
@@ -600,7 +643,7 @@
     const reqId = ++requestCounter;
     currentRequestEpoch = { req: reqId, session: epoch };
 
-    currentKeywords = parseKeywords(raw);
+    currentKeywords = parseQuery(raw).terms;
     currentOffset = Math.max(0, Math.min(MAX_PAGE_OFFSET, offset));
 
     statusEl.classList.remove("is-error");
@@ -655,7 +698,7 @@
 
     if (currentTotal === 0) {
       if (currentKeywords.length) {
-        statusEl.textContent = `No companies matched: ${currentKeywords.join(", ")}`;
+        statusEl.textContent = `No companies matched: ${submittedQuery.trim()}`;
       } else {
         statusEl.textContent = "No companies matched the current filters.";
       }
@@ -682,7 +725,8 @@
     if (appInitialized) return;
     appInitialized = true;
     fetchCountries();
-    runSearch(0);
+    statusEl.classList.remove("is-error");
+    statusEl.textContent = "Enter search terms and press Search. Press Search with an empty box to list every company.";
   }
 
   // ---------------------------------------------------------------------
@@ -736,9 +780,10 @@
     return `[${mdEscape(url.hostname.replace(/^www\./, ""))}](${mdEscape(url.href)})`;
   }
 
-  function buildMarkdown(rows, keywords) {
+  function buildMarkdown(rows, queryText) {
     const lines = [];
-    lines.push(`# Biotech search results: ${keywords.length ? keywords.join(", ") : "(all)"}`);
+    const q = (queryText || "").trim();
+    lines.push(`# Biotech search results: ${q ? mdEscape(q) : "(all)"}`);
     lines.push("");
     lines.push(`| ${EXPORT_HEADER.join(" | ")} |`);
     lines.push(`| ${EXPORT_HEADER.map(() => "---").join(" | ")} |`);
@@ -820,7 +865,7 @@
         triggerDownload(buildCsv(rows), "text/csv;charset=utf-8", `biotech-search-${slug}.csv`);
       } else {
         triggerDownload(
-          buildMarkdown(rows, currentKeywords),
+          buildMarkdown(rows, lastQueryArgs ? lastQueryArgs.q : ""),
           "text/markdown;charset=utf-8",
           `biotech-search-${slug}.md`
         );
@@ -847,13 +892,13 @@
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();
-    clearTimeout(debounceTimer);
+    const raw = input.value;
+    const validationError = validateQuery(raw);
+    setQueryError(validationError);
+    if (validationError) return;
+    submittedQuery = raw;
+    hasSearched = true;
     runSearch(0);
-  });
-
-  input.addEventListener("input", () => {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => runSearch(0), DEBOUNCE_MS);
   });
 
   prevBtn.addEventListener("click", () => {
@@ -872,14 +917,15 @@
   exportMdBtn.addEventListener("click", () => runExport("md"));
   exportCsvBtn.addEventListener("click", () => runExport("csv"));
 
-  countryFilter.addEventListener("change", () => runSearch(0));
-  websiteFilter.addEventListener("change", () => runSearch(0));
+  countryFilter.addEventListener("change", () => { if (hasSearched) runSearch(0); });
+  websiteFilter.addEventListener("change", () => { if (hasSearched) runSearch(0); });
 
   resetFiltersBtn.addEventListener("click", () => {
     countryFilter.value = "";
     websiteFilter.checked = false;
     currentSort = "relevance";
-    runSearch(0);
+    updateSortIndicators();
+    if (hasSearched) runSearch(0);
   });
 
   for (const th of sortableHeaders) {
@@ -890,7 +936,8 @@
       } else {
         currentSort = `${key}_asc`;
       }
-      runSearch(0);
+      updateSortIndicators();
+      if (hasSearched) runSearch(0);
     });
   }
 })();

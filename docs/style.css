@@ -4,16 +4,17 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  margin: 2rem auto;
-  padding: 0 clamp(1rem, 3vw, 3rem);
+  /* Full width of the window; only side padding. */
+  margin: 1.5rem 0;
+  padding: 0 clamp(1rem, 2vw, 2.5rem);
   color: #1a1a1a;
   background: #ffffff;
-  max-width: 1100px;
 }
 
 h1 {
-  font-size: 1.4rem;
-  margin-bottom: 0.25rem;
+  font-size: 2.1rem;
+  line-height: 1.2;
+  margin: 0;
 }
 
 .hint {
@@ -37,7 +38,9 @@ h1 {
 }
 
 #auth-screen h1 {
-  font-size: 1.6rem;
+  font-size: 2.2rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 2px solid #d9dee3;
 }
 
 #auth-message {
@@ -75,10 +78,13 @@ h1 {
 
 #app-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
+  padding-bottom: 0.6rem;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid #d9dee3;
 }
 
 #user-bar {
@@ -227,6 +233,8 @@ table {
   width: 100%;
   table-layout: fixed;
   border-collapse: collapse;
+  /* Below this the brief would be squeezed to nothing; scroll instead. */
+  min-width: 760px;
 }
 
 th, td {
@@ -257,9 +265,11 @@ th.sortable:hover {
   font-size: 0.75rem;
 }
 
-col.col-name    { width: 170px; }
+/* Company, Country and Website are fixed and narrow; Brief takes all the
+   remaining width of the window. */
+col.col-name    { width: 190px; }
 col.col-country { width: 110px; }
-col.col-website { width: 150px; }
+col.col-website { width: 160px; }
 col.col-brief   { width: auto; }
 
 .name-cell, .country-cell, .website-cell {
