@@ -1,0 +1,363 @@
+:root {
+  color-scheme: light;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  margin: 2rem auto;
+  padding: 0 clamp(1rem, 3vw, 3rem);
+  color: #1a1a1a;
+  background: #ffffff;
+  max-width: 1100px;
+}
+
+h1 {
+  font-size: 1.4rem;
+  margin-bottom: 0.25rem;
+}
+
+.hint {
+  color: #555;
+  font-size: 0.9rem;
+  margin-top: 0;
+}
+
+.hint code {
+  background: #f0f0f0;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+}
+
+/* ---- Auth screen ---- */
+
+#auth-screen {
+  max-width: 480px;
+  margin: 4rem auto;
+  text-align: center;
+}
+
+#auth-screen h1 {
+  font-size: 1.6rem;
+}
+
+#auth-message {
+  color: #444;
+  font-size: 0.95rem;
+  min-height: 1.4rem;
+  margin: 1rem 0 1.5rem;
+  white-space: pre-line;
+}
+
+#auth-message.is-error {
+  color: #a3312a;
+}
+
+#signin-btn {
+  padding: 0.6rem 1.4rem;
+  font-size: 1rem;
+}
+
+/* ---- Fatal error banner ---- */
+
+#fatal-error {
+  max-width: 640px;
+  margin: 3rem auto;
+  padding: 1rem 1.2rem;
+  border: 1px solid #a3312a;
+  border-radius: 6px;
+  background: #fbe9e7;
+  color: #7a221c;
+  font-size: 0.95rem;
+  white-space: pre-line;
+}
+
+/* ---- App header / user bar ---- */
+
+#app-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+#user-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+#user-bar button {
+  background: #eee;
+  color: #333;
+  font-size: 0.8rem;
+  padding: 0.3rem 0.7rem;
+}
+
+#user-bar button:hover {
+  background: #ddd;
+}
+
+/* ---- Search form ---- */
+
+#search-form {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1rem 0;
+  max-width: 960px;
+}
+
+#q {
+  flex: 1;
+  padding: 0.5rem 0.7rem;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.field-error {
+  color: #a3312a;
+  font-size: 0.85rem;
+  margin: -0.5rem 0 0.75rem;
+}
+
+button {
+  padding: 0.5rem 1.2rem;
+  font-size: 1rem;
+  border: none;
+  border-radius: 4px;
+  background: #2a6f6f;
+  color: white;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #235c5c;
+}
+
+#toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+#status {
+  color: #555;
+  font-size: 0.9rem;
+  min-height: 1.2rem;
+}
+
+#status.is-error {
+  color: #a3312a;
+}
+
+#export-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+#export-buttons button {
+  background: #eee;
+  color: #333;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.8rem;
+}
+
+#export-buttons button:hover:not(:disabled) {
+  background: #ddd;
+}
+
+#export-buttons button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#filter-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.88rem;
+  color: #444;
+}
+
+#filter-bar label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+#filter-bar select {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.checkbox-label {
+  cursor: pointer;
+}
+
+#reset-filters {
+  background: none;
+  border: none;
+  color: #2a6f6f;
+  padding: 0;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+#reset-filters:hover {
+  background: none;
+  color: #1a4f4f;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+th, td {
+  text-align: left;
+  padding: 0.6rem 0.7rem;
+  border-bottom: 1px solid #e5e5e5;
+  vertical-align: top;
+}
+
+th {
+  border-bottom: 2px solid #ccc;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #666;
+}
+
+th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+th.sortable:hover {
+  color: #2a6f6f;
+}
+
+.sort-arrow {
+  font-size: 0.75rem;
+}
+
+col.col-name    { width: 170px; }
+col.col-country { width: 110px; }
+col.col-website { width: 150px; }
+col.col-brief   { width: auto; }
+
+.name-cell, .country-cell, .website-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.name-cell {
+  font-weight: 600;
+}
+
+.loc {
+  font-weight: 400;
+  font-size: 0.82rem;
+  color: #777;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.website-cell {
+  font-size: 0.88rem;
+}
+
+.website-cell a {
+  color: #2a6f6f;
+}
+
+.brief-cell {
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+#pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e5e5;
+  font-size: 0.88rem;
+  color: #555;
+}
+
+#page-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+#page-controls button {
+  background: #eee;
+  color: #333;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.8rem;
+}
+
+#page-controls button:hover:not(:disabled) {
+  background: #ddd;
+}
+
+#page-controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#page-select {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+mark {
+  background: #fff3a3;
+  padding: 0 1px;
+  border-radius: 2px;
+}
+
+.tag {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.8rem;
+  color: #777;
+}
+
+@media (max-width: 480px) {
+  #search-form {
+    flex-direction: column;
+  }
+}
+
+/* Founders / investors: free-text, sometimes long. Keep them visually
+   secondary to the brief and let them wrap rather than widen the column. */
+.brief-cell .people {
+  margin-top: 0.25rem;
+  opacity: 0.85;
+  overflow-wrap: anywhere;
+}

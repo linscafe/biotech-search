@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src https://anktktwofftmbnogzjoa.supabase.co; base-uri 'none'; object-src 'none'; form-action 'none'">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Biotech Company Search</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+  <div id="fatal-error" hidden></div>
+
+  <div id="auth-screen">
+    <h1>Biotech Company Search</h1>
+    <p id="auth-message">Loading...</p>
+    <button type="button" id="signin-btn" hidden>Sign in with Google</button>
+    <button type="button" id="auth-signout-btn" hidden>Sign out</button>
+  </div>
+
+  <div id="app-screen" hidden>
+    <header id="app-header">
+      <h1>Biotech Company Search</h1>
+      <div id="user-bar">
+        <span id="user-email"></span>
+        <button type="button" id="signout-btn">Sign out</button>
+      </div>
+    </header>
+
+    <p class="hint">Enter keywords separated by commas, e.g. <code>multiplex, NGS, single cell sequencing</code>. Up to 10 comma-separated terms.</p>
+
+    <form id="search-form">
+      <input type="text" id="q" name="q" placeholder="multiplex, NGS, single cell sequencing" autocomplete="off" maxlength="500">
+      <button type="submit">Search</button>
+    </form>
+    <p id="query-error" class="field-error" hidden></p>
+
+    <div id="toolbar">
+      <div id="status" role="status"></div>
+      <div id="export-buttons">
+        <button type="button" id="export-md" disabled>Export Markdown</button>
+        <button type="button" id="export-csv" disabled>Export CSV</button>
+      </div>
+    </div>
+
+    <div id="filter-bar">
+      <label>Country
+        <select id="filter-country">
+          <option value="">All</option>
+        </select>
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" id="filter-website">
+        Only companies with a website
+      </label>
+      <button type="button" id="reset-filters">Reset filters &amp; sort</button>
+    </div>
+
+    <div class="table-wrap">
+      <table id="results-table">
+        <colgroup>
+          <col class="col-name">
+          <col class="col-country">
+          <col class="col-website">
+          <col class="col-brief">
+        </colgroup>
+        <thead>
+          <tr>
+            <th class="sortable" data-sort="name">Company<span class="sort-arrow"></span></th>
+            <th class="sortable" data-sort="country">Country<span class="sort-arrow"></span></th>
+            <th>Website</th>
+            <th>Brief</th>
+          </tr>
+        </thead>
+        <tbody id="results"></tbody>
+      </table>
+    </div>
+
+    <div id="pagination" hidden>
+      <span id="page-info"></span>
+      <div id="page-controls">
+        <button type="button" id="prev-page">&laquo; Previous</button>
+        <select id="page-select"></select>
+        <button type="button" id="next-page">Next &raquo;</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./vendor/supabase-js.min.js"></script>
+  <script src="./config.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
