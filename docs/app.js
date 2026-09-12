@@ -55,6 +55,7 @@
   const MAX_PAGE_OFFSET = 100000;
   const MAX_QUERY_LENGTH = 500;
   const MAX_KEYWORDS = 10;
+  const DEBOUNCE_MS = 250; // search starts when typing pauses this long
   const SORT_OPTIONS = new Set(["relevance", "name_asc", "name_desc", "country_asc", "country_desc"]);
 
   // Derived only from the page's own location — never from user input or a
@@ -125,11 +126,11 @@
   let currentRows = []; // rows currently rendered (for reference only)
   let lastQueryArgs = null; // filter/sort/q snapshot backing the currently displayed results
   let knownCountries = [];
-  // Search runs only when the user presses Search (or Enter in the box).
-  // Paging, sorting and filters re-run the LAST SUBMITTED query, never
-  // whatever is currently typed in the box.
+  // Search starts when typing pauses (or on Search / Enter). Paging, sorting
+  // and filters re-run the last query that was actually searched.
   let submittedQuery = "";
   let hasSearched = false;
+  let debounceTimer = null;
   let exportInFlight = false;
   let activeObjectUrls = [];
   let appInitialized = false;
@@ -155,6 +156,7 @@
     currentKeywords = [];
     submittedQuery = "";
     hasSearched = false;
+    clearTimeout(debounceTimer);
     currentOffset = 0;
     currentTotal = 0;
     currentRows = [];
@@ -670,6 +672,12 @@
       if (msg.includes("jwt") || msg.includes("token") || error.status === 401) {
         statusEl.textContent = "Your session has expired. Please sign in again.";
         await signOut();
+      } else if (error.code === "57014" || msg.includes("statement timeout")) {
+        // The database cancels any query that runs longer than its limit.
+        statusEl.textContent = "That search took too long. Try fewer or more specific terms.";
+      } else if (error.code === "22023") {
+        // Our own input checks in search_companies (length, term count, ...).
+        statusEl.textContent = error.message || "That search could not be run.";
       } else {
         statusEl.textContent = "Something went wrong loading results. Please try again.";
       }
@@ -725,8 +733,7 @@
     if (appInitialized) return;
     appInitialized = true;
     fetchCountries();
-    statusEl.classList.remove("is-error");
-    statusEl.textContent = "Enter search terms and press Search. Press Search with an empty box to list every company.";
+    triggerSearch(); // initial listing of every company, as before
   }
 
   // ---------------------------------------------------------------------
@@ -890,8 +897,8 @@
   // Event wiring
   // ---------------------------------------------------------------------
 
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
+  function triggerSearch() {
+    clearTimeout(debounceTimer);
     const raw = input.value;
     const validationError = validateQuery(raw);
     setQueryError(validationError);
@@ -899,6 +906,16 @@
     submittedQuery = raw;
     hasSearched = true;
     runSearch(0);
+  }
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    triggerSearch();
+  });
+
+  input.addEventListener("input", () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(triggerSearch, DEBOUNCE_MS);
   });
 
   prevBtn.addEventListener("click", () => {
