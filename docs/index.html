@@ -28,10 +28,8 @@
       </div>
     </header>
 
-    <p class="hint">Terms separated by spaces or commas must all match (<code>AND</code> is optional). Put a phrase in quotes to keep its spaces: <code>"single cell sequencing"</code>. Use <code>OR</code> between alternatives: <code>oncology NGS OR "next-generation sequencing"</code> means oncology AND (NGS OR next-generation sequencing). Up to 10 terms. Press <strong>Search</strong> to run; an empty search lists every company.</p>
-
     <form id="search-form">
-      <input type="text" id="q" name="q" placeholder='oncology NGS OR "single cell sequencing"' autocomplete="off" maxlength="500">
+      <input type="text" id="q" name="q" placeholder='NGS OR "next-generation sequencing" AND "immunoassay"' autocomplete="off" maxlength="500">
       <button type="submit">Search</button>
     </form>
     <p id="query-error" class="field-error" hidden></p>
