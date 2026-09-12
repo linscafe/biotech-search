@@ -99,7 +99,6 @@
   const queryErrorEl = document.getElementById("query-error");
   const statusEl = document.getElementById("status");
   const resultsBody = document.getElementById("results");
-  const exportMdBtn = document.getElementById("export-md");
   const exportCsvBtn = document.getElementById("export-csv");
   const paginationEl = document.getElementById("pagination");
   const pageInfoEl = document.getElementById("page-info");
@@ -151,7 +150,6 @@
     statusEl.textContent = "";
     statusEl.classList.remove("is-error");
     paginationEl.hidden = true;
-    exportMdBtn.disabled = true;
     exportCsvBtn.disabled = true;
     currentKeywords = [];
     submittedQuery = "";
@@ -702,7 +700,6 @@
       sort_mode: searchArgs.sort_mode,
     };
 
-    exportMdBtn.disabled = currentTotal === 0;
     exportCsvBtn.disabled = currentTotal === 0;
 
     updateSortIndicators();
@@ -778,37 +775,6 @@
     return lines.join("\r\n") + "\r\n";
   }
 
-  function mdEscape(raw) {
-    let v = raw === null || raw === undefined ? "" : String(raw);
-    v = v.replace(/\\/g, "\\\\");
-    v = v.replace(/\|/g, "\\|");
-    v = v.replace(/\r\n|\r|\n/g, " ");
-    return v;
-  }
-
-  function mdWebsiteCell(website) {
-    const url = safeHttpUrl(website);
-    if (!url) return mdEscape(website || "");
-    return `[${mdEscape(url.hostname.replace(/^www\./, ""))}](${mdEscape(url.href)})`;
-  }
-
-  function buildMarkdown(rows, queryText) {
-    const lines = [];
-    const q = (queryText || "").trim();
-    lines.push(`# Biotech search results: ${q ? mdEscape(q) : "(all)"}`);
-    lines.push("");
-    lines.push(`| ${EXPORT_HEADER.join(" | ")} |`);
-    lines.push(`| ${EXPORT_HEADER.map(() => "---").join(" | ")} |`);
-    for (const r of rows) {
-      lines.push(
-        `| ${mdEscape(r.name)} | ${mdEscape(r.sector)} | ${mdEscape(r.city)} | ` +
-        `${mdEscape(r.country)} | ${mdWebsiteCell(r.website)} | ${mdEscape(r.brief)} | ` +
-        `${mdEscape(joinTextList(r.founders))} | ${mdEscape(joinTextList(r.investors))} |`
-      );
-    }
-    return lines.join("\n") + "\n";
-  }
-
   async function fetchAllRowsForExport(epoch) {
     if (!lastQueryArgs) return [];
     const rows = [];
@@ -858,10 +824,9 @@
     return base.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "export";
   }
 
-  async function runExport(format) {
+  async function runExport() {
     if (exportInFlight) return;
     exportInFlight = true;
-    exportMdBtn.disabled = true;
     exportCsvBtn.disabled = true;
     const priorStatus = statusEl.textContent;
     statusEl.classList.remove("is-error");
@@ -873,15 +838,7 @@
         return; // session changed; abandon silently, UI has already reset
       }
       const slug = exportFilenameSlug(currentKeywords);
-      if (format === "csv") {
-        triggerDownload(buildCsv(rows), "text/csv;charset=utf-8", `biotech-search-${slug}.csv`);
-      } else {
-        triggerDownload(
-          buildMarkdown(rows, lastQueryArgs ? lastQueryArgs.q : ""),
-          "text/markdown;charset=utf-8",
-          `biotech-search-${slug}.md`
-        );
-      }
+      triggerDownload(buildCsv(rows), "text/csv;charset=utf-8", `biotech-search-${slug}.csv`);
       statusEl.textContent = `Exported ${rows.length} row${rows.length === 1 ? "" : "s"}.`;
     } catch (err) {
       statusEl.classList.add("is-error");
@@ -889,7 +846,6 @@
     } finally {
       exportInFlight = false;
       if (epoch === sessionEpoch) {
-        exportMdBtn.disabled = currentTotal === 0;
         exportCsvBtn.disabled = currentTotal === 0;
         if (statusEl.textContent === "Preparing export...") {
           statusEl.textContent = priorStatus;
@@ -936,8 +892,7 @@
     runSearch(parseInt(pageSelect.value, 10));
   });
 
-  exportMdBtn.addEventListener("click", () => runExport("md"));
-  exportCsvBtn.addEventListener("click", () => runExport("csv"));
+  exportCsvBtn.addEventListener("click", () => runExport());
 
   countryFilter.addEventListener("change", () => { if (hasSearched) runSearch(0); });
   websiteFilter.addEventListener("change", () => { if (hasSearched) runSearch(0); });
