@@ -13,8 +13,9 @@
  *  - Only http:/https: URLs (via `new URL()`) are ever rendered as links.
  *  - No query text, results, tokens or session data go into the URL,
  *    localStorage, a service worker, or any persistent cache.
- *  - Auth callback handling never does data work synchronously inside
- *    onAuthStateChange (scheduled via queueMicrotask instead).
+ *  - Auth callback handling never does data work inside onAuthStateChange.
+ *    Relevant events are coalesced and handled in a later macrotask;
+ *    TOKEN_REFRESHED is deliberately side-effect free.
  *  - Every request is tagged with a request id + session id; stale
  *    responses (wrong id, or session no longer current) are discarded.
  */
@@ -114,7 +115,7 @@
   // State
   // ---------------------------------------------------------------------
 
-  let sessionEpoch = 0; // bumped on every auth event; invalidates in-flight work
+  let sessionEpoch = 0; // bumped on handled sign-in/out state; invalidates in-flight work
   let requestCounter = 0;
   let currentRequestEpoch = { req: 0, session: -1 };
 
@@ -133,6 +134,8 @@
   let exportInFlight = false;
   let activeObjectUrls = [];
   let appInitialized = false;
+  let pendingAuthEvent = null;
+  let authEventTimer = null;
 
   function revokeAllObjectUrls() {
     for (const url of activeObjectUrls) {
@@ -228,7 +231,7 @@
     }
   }
 
-  async function checkApproval(epoch) {
+  async function checkApproval(epoch, session) {
     let result;
     try {
       result = await supabaseClient.rpc("access_status");
@@ -262,9 +265,10 @@
     }
 
     if (data === true) {
-      const { data: userData } = await supabaseClient.auth.getUser().catch(() => ({ data: null }));
-      if (epoch !== sessionEpoch) return;
-      const email = userData && userData.user ? userData.user.email : "";
+      // The auth event already supplies the current server-issued user. Do
+      // not call getUser() here: auth methods reached from an auth-state
+      // notification can feed TOKEN_REFRESHED back into the handler.
+      const email = session && session.user ? session.user.email : "";
       showAppScreen(email);
       initAppOnce();
     } else {
@@ -287,20 +291,43 @@
       return;
     }
 
-    // Only show the transitional "checking access" screen on first sign-in;
-    // a background token refresh re-verifies approval without disrupting an
-    // already-rendered app screen (checkApproval re-hides it if approval
-    // was actually lost).
+    // Only INITIAL_SESSION and SIGNED_IN reach this function. Token refreshes
+    // do not need another approval RPC: RLS checks private.is_allowed() on
+    // every data request, so revoked access remains enforced server-side.
     if (!appInitialized) {
       showAuthScreen("Checking access...", {});
     }
-    checkApproval(epoch);
+    checkApproval(epoch, session);
     stripOAuthParamsFromUrl();
   }
 
+  function scheduleAuthEvent(event, session) {
+    // A refreshed token represents the same signed-in identity. Calling an
+    // auth-backed RPC in response can create a refresh feedback loop, while
+    // ignoring it is safe because every database operation is independently
+    // protected by RLS.
+    if (event === "TOKEN_REFRESHED") return;
+
+    // Ignore events that do not change signed-in state. USER_UPDATED and MFA
+    // events, for example, must not trigger another approval check.
+    if (event !== "INITIAL_SESSION" && event !== "SIGNED_IN" && event !== "SIGNED_OUT") return;
+
+    // Supabase may emit INITIAL_SESSION and SIGNED_IN together during an OAuth
+    // callback. Keep only the newest state and wait for the auth callback to
+    // finish completely before making any Supabase request.
+    pendingAuthEvent = { event, session };
+    if (authEventTimer !== null) return;
+
+    authEventTimer = window.setTimeout(() => {
+      authEventTimer = null;
+      const next = pendingAuthEvent;
+      pendingAuthEvent = null;
+      if (next) handleAuthEvent(next.event, next.session);
+    }, 0);
+  }
+
   supabaseClient.auth.onAuthStateChange((event, session) => {
-    // Never do data work synchronously inside this callback.
-    queueMicrotask(() => handleAuthEvent(event, session));
+    scheduleAuthEvent(event, session);
   });
 
   signinBtn.addEventListener("click", () => {
